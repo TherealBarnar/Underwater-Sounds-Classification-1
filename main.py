@@ -3,7 +3,7 @@ import librosa
 import pandas as pd
 import matplotlib.pyplot as plt
 
-dataset_root = 'C://underwater-classification//dataset//Target'
+dataset_root = 'C://underwater-classification//dataset'
 
 
 def extract_audio_features(dataset_root):
