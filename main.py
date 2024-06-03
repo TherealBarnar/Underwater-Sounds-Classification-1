@@ -1,12 +1,15 @@
 import os
 import librosa
+import soundfile as sf
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
+from collections import Counter
 
-dataset_root = 'C://underwater-classification//dataset'
 
 
-def extract_audio_features(dataset_root):
+
+def extract_audio_features(root_folder):
     # Lista per memorizzare le informazioni estratte
     audio_features = []
 
@@ -16,21 +19,34 @@ def extract_audio_features(dataset_root):
     amplitudes = []
     num_channels_list = []
     phases = []
+    max_internal_frequencies = []
+    bit_depths = []
 
     # Attraversa tutte le sottocartelle nel percorso radice
-    for root, dirs, files in os.walk(dataset_root):
+    for root, dirs, files in os.walk(root_folder):
         for filename in files:
-            if filename.endswith(('.wav', '.mp3')):  # Considera solo file audio WAV o MP3
+            if filename.endswith(('.wav', '.mp3', '.flac')):  # Considera solo file audio WAV, MP3 o FLAC
                 file_path = os.path.join(root, filename)
 
                 try:
-                    # Carica il file audio utilizzando librosa
-                    y, sr = librosa.load(file_path, sr=None)
+                    # Assicurati che file_path sia una stringa
+                    file_path = str(file_path)
+
+                    # Usa soundfile per ottenere informazioni sul file audio
+                    with sf.SoundFile(file_path) as f:
+                        num_channels = f.channels
+                        bit_depth = sf.info(file_path).subtype_info.split(' ')[0]  # Estrai la profondità del bit
+
+                    # Carica il file audio utilizzando librosa (senza convertire in mono)
+                    y, sr = librosa.load(file_path, sr=None, mono=False)
+
+                    # Se l'audio ha più di un canale, prendi solo il primo canale per le caratteristiche
+                    if y.ndim > 1:
+                        y = y[0]
 
                     # Estrai le informazioni richieste
                     amplitude = max(abs(y))  # Ampiezza massima assoluta del segnale
                     duration = librosa.get_duration(y=y, sr=sr)  # Durata del segnale in secondi
-                    num_channels = 1 if y.ndim == 1 else y.shape[1]  # Numero di canali (mono o stereo)
                     frequency = sr  # Frequenza di campionamento
                     phase = y[0]  # Fase del segnale (primo campione)
 
@@ -40,6 +56,15 @@ def extract_audio_features(dataset_root):
                     frequencies.append(frequency)
                     num_channels_list.append(num_channels)
                     phases.append(phase)
+                    bit_depths.append(bit_depth)
+
+                    # Estrazione della frequenza massima interna
+                    pitches, magnitudes = librosa.core.piptrack(y=y, sr=sr, n_fft=512)
+                    max_idx = magnitudes.argmax()
+                    max_time_idx = max_idx // magnitudes.shape[0]
+                    max_freq_idx = max_idx % magnitudes.shape[0]
+                    max_internal_frequency = pitches[max_freq_idx, max_time_idx]
+                    max_internal_frequencies.append(max_internal_frequency)
 
                     # Ottieni il nome del file senza l'estensione
                     file_name = os.path.splitext(filename)[0]
@@ -53,13 +78,16 @@ def extract_audio_features(dataset_root):
                         'Frequenza': frequency,
                         'Numero di canali': num_channels,
                         'Fase': phase,
+                        'Frequenza massima interna': max_internal_frequency,
+                        'Bit Depth': bit_depth,
                         'Forma d\'onda': y.shape
                     })
 
                 except Exception as e:
                     print(f"Errore durante l'elaborazione del file '{filename}': {e}")
 
-    return audio_features, amplitudes, durations, frequencies, num_channels_list, phases
+    return audio_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths
+
 
 def save_to_csv(data, output_file):
     # Converte i dati in un DataFrame pandas
@@ -68,22 +96,67 @@ def save_to_csv(data, output_file):
     # Salva il DataFrame in un file CSV
     df.to_csv(output_file, index=False)
 
-def plot_distribution(values, title):
-    # Crea un grafico di distribuzione utilizzando matplotlib
-    plt.figure(figsize=(8, 6))
-    plt.hist(values, bins=20, color='skyblue', edgecolor='black')
-    plt.title(title)
-    plt.xlabel('Valore')
+def plot_audio_durations_histogram(durations, bins=100):
+    plt.figure(figsize=(12, 8))
+    sns.histplot(durations, bins=bins, kde=True)
+    plt.title('Distribuzione delle durate degli audio')
+    plt.xlabel('Durata (secondi)')
     plt.ylabel('Frequenza')
     plt.grid(True)
     plt.show()
 
+def plot_audio_max_frequencies_histogram(max_internal_frequencies, bins=100):
+    plt.figure(figsize=(12, 8))
+    sns.histplot(max_internal_frequencies, bins=bins, kde=True)
+    plt.title('Distribuzione delle frequenze massime ')
+    plt.xlabel('Frequenza massima')
+    plt.ylabel('Valore')
+    plt.grid(True)
+    plt.show()
+def plot_distribution_boxplot(values, title):
+    plt.figure(figsize=(10, 6))
+    plt.boxplot(values, vert=False)  # Imposta vert=False per visualizzare il box plot orizzontalmente
+    plt.title(title)
+    plt.xlabel('Valore')
+    plt.grid(True)
+    plt.show()
+
+def plot_distribution(values, title, x_label):
+    # Conta le occorrenze di ciascun valore
+    counter = Counter(values)
+
+    # Ordina i valori unici
+    unique_values = sorted(counter.keys())
+    counts = [counter[value] for value in unique_values]
+
+    # Crea un grafico di distribuzione utilizzando matplotlib
+    plt.figure(figsize=(12, 8))
+    bar_width = 0.8  # Larghezza delle barre
+    indices = range(len(unique_values))
+
+    bars = plt.bar(indices, counts, color='skyblue', edgecolor='black', width=bar_width)
+
+    # Aggiunge le etichette alle barre
+    for bar, count in zip(bars, counts):
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 2, height, str(count), ha='center', va='bottom', fontsize=10)
+
+    plt.title(title, fontsize=16)
+    plt.xlabel(x_label, fontsize=14)
+    plt.ylabel('Occorrenze', fontsize=14)
+    plt.xticks(indices, unique_values, rotation=45, ha='right')
+    plt.grid(True, axis='y', linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == "__main__":
     # Specifica il percorso radice del dataset audio
-
+    dataset_root = 'C:/Users/danid/PycharmProjects/ProjectUnderwaterClassification/DATASET'
 
     # Estrai le informazioni audio dal dataset
-    extracted_features, amplitudes, durations, frequencies, num_channels_list, phases = extract_audio_features(dataset_root)
+    extracted_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths = extract_audio_features(
+        dataset_root)
 
     # Specifica il percorso per salvare il file CSV di output
     output_csv_file = 'audio_features_dataset.csv'
@@ -92,10 +165,12 @@ if __name__ == "__main__":
     save_to_csv(extracted_features, output_csv_file)
 
     # Genera i grafici di distribuzione per ciascuna caratteristica
-    plot_distribution(amplitudes, 'Distribuzione dei Valori di Ampiezza del Segnale')
-    plot_distribution(durations, 'Distribuzione dei Valori di Durata')
-    plot_distribution(frequencies, 'Distribuzione dei Valori di Frequenza')
-    plot_distribution(num_channels_list, 'Distribuzione dei Valori di Numero di Canali')
-    plot_distribution(phases, 'Distribuzione dei Valori di Fase')
+    plot_distribution_boxplot(amplitudes, 'Distribuzione dei Valori di Ampiezza del Segnale')
+    plot_audio_durations_histogram(durations)
+    plot_distribution(frequencies, 'Distribuzione dei Valori di Frequenza', 'Frequenza (Hz)')
+    plot_distribution(num_channels_list, 'Distribuzione dei Valori di Numero di Canali', 'Numero di Canali')
+    plot_distribution_boxplot(phases, 'Distribuzione dei Valori di Fase')
+    plot_audio_max_frequencies_histogram(max_internal_frequencies)
+    plot_distribution(bit_depths, 'Distribuzione dei Valori di Bit Depth', 'Bit Depth')
 
-    print(f"Il file CSV '{output_csv_file}' e' stato creato con successo.")
+    print(f"Il file CSV '{output_csv_file}' è stato creato con successo.")
