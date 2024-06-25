@@ -88,7 +88,7 @@ def extract_audio_features(root_folder):
 
     return audio_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths
 
-
+print("CAIOO")
 def save_to_csv(data, output_file):
     # Converte i dati in un DataFrame pandas
     df = pd.DataFrame(data)
