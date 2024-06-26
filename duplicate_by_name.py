@@ -102,7 +102,7 @@ def main(directory):
             print(f"{filename}: {len(paths)} volte")
 
     # Directory del progetto per la cartella temporanea
-    project_directory = "C:/Users/frees/PycharmProjects/UnderwaterClassification"
+    project_directory = "C://underwater-classification"
     temp_dir = move_duplicates_to_temp(project_directory, file_names)
     audio_duplicates = check_audio_duplicates(temp_dir)
 
@@ -117,5 +117,5 @@ def main(directory):
 
 
 if __name__ == "__main__":
-    directory = "C:/Users/frees/PycharmProjects/UnderwaterClassification/dataSet_UnderWater"
+    directory = "C://underwater-classification//dataset"
     main(directory)

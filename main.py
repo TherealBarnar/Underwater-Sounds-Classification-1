@@ -88,7 +88,7 @@ def extract_audio_features(root_folder):
 
     return audio_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths
 
-print("CAIOO")
+
 def save_to_csv(data, output_file):
     # Converte i dati in un DataFrame pandas
     df = pd.DataFrame(data)
@@ -152,7 +152,7 @@ def plot_distribution(values, title, x_label):
 
 if __name__ == "__main__":
     # Specifica il percorso radice del dataset audio
-    dataset_root = 'C:/Users/danid/PycharmProjects/ProjectUnderwaterClassification/DATASET'
+    dataset_root = 'C://underwater-classification//dataset//'
 
     # Estrai le informazioni audio dal dataset
     extracted_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths = extract_audio_features(
