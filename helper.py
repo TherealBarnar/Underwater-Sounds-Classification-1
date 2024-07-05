@@ -5,12 +5,17 @@ from collections import Counter
 import librosa
 import os
 import numpy as np
+from matplotlib.colors import LogNorm
+from transformers import WhisperFeatureExtractor   #estrattore di dati grezzi; whisper è modello pre addestrato per il riconoscimento vocale
+
+feature_extractor = WhisperFeatureExtractor.from_pretrained("openai/whisper-small")
 
 df = pd.read_csv("audio_features_dataset_no_duplicates.csv")
+dfpp = pd.read_csv("audio_features_dataset_prep.csv")
 
+file_audio = 'C://Users//mario//OneDrive//Desktop//Dataset - Copia - no duplicati//Non-Target//Right whale//RightWhale.wav'
 
 def estrai_classe_target(file_path):
-
     # Filtra le righe dove la colonna 'classe' è 'Target'
     df_target = df[df['Classe'] == 'Target']
 
@@ -24,9 +29,11 @@ def estrai_classe_noTarget(file_path):
 
 dfTarget = estrai_classe_target(df)
 dfNoTarget = estrai_classe_noTarget(df)
+
+
 def sample_counter(dfTarget):
     category_counts = dfTarget['Sottoclasse'].value_counts()
-    plt.figure(figsize=(20,10))
+    plt.figure(figsize=(20, 10))
     ax = sns.barplot(x=category_counts.index, y=category_counts.values)
     plt.xlabel('Categoria')
     plt.ylabel('Numero di elementi')
@@ -40,9 +47,10 @@ def sample_counter(dfTarget):
     plt.tight_layout()
     plt.show()
 
+
 def sample_counterNot(dfNoTarget):
     category_counts = dfNoTarget['Sottoclasse'].value_counts()
-    plt.figure(figsize=(20,10))
+    plt.figure(figsize=(20, 10))
     ax = sns.barplot(x=category_counts.index, y=category_counts.values)
     plt.xlabel('Categoria')
     plt.ylabel('Numero di elementi')
@@ -58,19 +66,17 @@ def sample_counterNot(dfNoTarget):
 
 
 def plot_frequency_distribution(dfTarget):
-
     # Rimuovi eventuali valori NaN risultanti dalla conversione
     dfTarget = dfTarget.dropna(subset=['Frequenza'])
 
     # Conta le occorrenze di ciascuna frequenza
     frequency_counts = dfTarget['Frequenza'].value_counts().sort_index()
 
-    sr_max = dfNoTarget['Frequenza'].max()
-    sr_min = dfNoTarget['Frequenza'].min()
+    sr_max = dfTarget['Frequenza'].max()
+    sr_min = dfTarget['Frequenza'].min()
 
     print(f"Sample Rate Massimo: {sr_max}")
     print(f"Sample Rate Minimo: {sr_min}")
-
 
     # Crea il grafico a barre
     plt.figure(figsize=(12, 6))
@@ -88,8 +94,8 @@ def plot_frequency_distribution(dfTarget):
     plt.tight_layout()  # Aggiunge spaziatura per evitare sovrapposizioni
     plt.show()
 
-def plot_frequency_distribution_not(dfNoTarget):
 
+def plot_frequency_distribution_not(dfNoTarget):
     # Rimuovi eventuali valori NaN risultanti dalla conversione
     dfNoTarget = dfNoTarget.dropna(subset=['Frequenza'])
 
@@ -101,7 +107,6 @@ def plot_frequency_distribution_not(dfNoTarget):
 
     print(f"Sample Rate Massimo: {sr_max}")
     print(f"Sample Rate Minimo: {sr_min}")
-
 
     # Crea il grafico a barre
     plt.figure(figsize=(12, 6))
@@ -137,10 +142,12 @@ def plot_combined_frequency_distribution(dfTarget, dfNoTarget):
     plt.figure(figsize=(12, 6))
 
     # Grafico per dfTarget
-    bars_target = plt.bar(frequency_counts_target.index.astype(str), frequency_counts_target.values, color='skyblue', label='Target')
+    bars_target = plt.bar(frequency_counts_target.index.astype(str), frequency_counts_target.values, color='skyblue',
+                          label='Target')
 
     # Grafico per dfNoTarget
-    bars_no_target = plt.bar(frequency_counts_no_target.index.astype(str), frequency_counts_no_target.values, color='lightcoral', label='Non-Target')
+    bars_no_target = plt.bar(frequency_counts_no_target.index.astype(str), frequency_counts_no_target.values,
+                             color='lightcoral', label='Non-Target')
 
     # Aggiungi i numeri sopra le barre per dfTarget
     for bar in bars_target:
@@ -159,6 +166,7 @@ def plot_combined_frequency_distribution(dfTarget, dfNoTarget):
     plt.legend()  # Aggiungi la legenda con i colori corrispondenti
     plt.tight_layout()  # Aggiunge spaziatura per evitare sovrapposizioni
     plt.show()
+
 
 def plot_duration_target(dfTarget):
     # Copia del DataFrame per evitare modifiche dirette
@@ -218,7 +226,8 @@ def plot_combined_duration_distribution(dfTarget, dfNoTarget):
     plt.hist(durations_notarget, bins=30, alpha=0.7, label='No Target', color='lightcoral')
 
     # Linea tratteggiata per la mediana complessiva
-    plt.axvline(overall_median, color='red', linestyle='--', linewidth=2, label=f'Median Duration: {overall_median:.2f}')
+    plt.axvline(overall_median, color='red', linestyle='--', linewidth=2,
+                label=f'Median Duration: {overall_median:.2f}')
 
     # Aggiungi titolo e label agli assi
     plt.title('Distribution of Durations for Target and No Target Classes')
@@ -228,5 +237,72 @@ def plot_combined_duration_distribution(dfTarget, dfNoTarget):
     plt.show()
 
 
+def prep_plot_channel_distribution(dfpp):
+    # Contare le occorrenze dei diversi numeri di canali
+    channel_counts = dfpp['Numero di canali'].value_counts().sort_index()
+
+    # Creare il grafico
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(channel_counts.index, channel_counts.values, color='lightgreen')
+    plt.bar(channel_counts.index, channel_counts.values, color='lightgreen')
+    plt.xlabel('Numero di Canali')
+    plt.ylabel('Occorrenze')
+    plt.title('Distribuzione del Numero di Canali')
+    plt.xticks(channel_counts.index)  # Assicurarsi che tutti i valori degli x siano mostrati
+    plt.grid(axis='y')
+
+    for bar, occorrenze in zip(bars, channel_counts.values):
+        plt.annotate(occorrenze,
+                     xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                     xytext=(0, 3),
+                     textcoords="offset points",
+                     ha='center', va='bottom', fontsize=9)
+    plt.show()
 
 
+def prep_plot_bit_depth_distribution(dfpp):
+    # Contare le occorrenze dei diversi bit depth
+    bit_depth_counts = dfpp['Bit Depth'].value_counts().sort_index()
+
+    # Creare il grafico
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(bit_depth_counts.index, bit_depth_counts.values, color='lightgreen')
+    plt.xlabel('Bit Depth')
+    plt.ylabel('Occorrenze')
+    plt.title('Distribuzione dei valori di Bit Depth')
+    plt.xticks(bit_depth_counts.index)  # Assicurarsi che tutti i valori degli x siano mostrati
+    plt.grid(axis='y')
+
+    # Aggiungere etichette con il numero di occorrenze sopra le barre
+    for bar, occorrenze in zip(bars, bit_depth_counts.values):
+        plt.annotate(occorrenze,
+                     xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                     xytext=(0, 3),  # Posizione dell'etichetta (3 punti sopra la barra)
+                     textcoords="offset points",
+                     ha='center', va='bottom', fontsize=9)
+
+    # Mostrare il grafico
+    plt.tight_layout()
+    plt.show()
+
+
+def create_spectrogram(file_path, sr):
+
+    y, sr = librosa.load(file_audio, sr=sr)
+
+    # Calcola lo spettrogramma della potenza
+    S = librosa.feature.melspectrogram(y=y, sr=sr)
+
+    # Converte in decibel
+    S_db = librosa.power_to_db(S, ref=np.max)
+
+    # Mostra lo spettrogramma della potenza con sfondo nero
+    plt.figure(figsize=(10, 4))
+    librosa.display.specshow(S_db, sr=sr, x_axis='time', y_axis='mel', cmap='magma')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title('Spectrogram')
+    plt.tight_layout()
+    plt.show()
+
+if __name__ == "__main__":
+    create_spectrogram(file_audio, 44000)
