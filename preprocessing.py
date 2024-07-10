@@ -7,6 +7,16 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import Counter
 
+def convert_to_wav(file_path):
+    try:
+        y, sr = librosa.load(file_path, sr=None, mono=True)
+        wav_file_path = os.path.splitext(file_path)[0] + '.wav'
+        sf.write(wav_file_path, y, sr, subtype='PCM_16')
+        return wav_file_path
+    except Exception as e:
+        print(f"Errore durante la conversione in WAV del file '{file_path}': {e}")
+        return None
+
 def extract_audio_features(root_folder):
     audio_features = []
     durations = []
@@ -25,8 +35,17 @@ def extract_audio_features(root_folder):
                 try:
                     file_path = str(file_path)
 
+                    # Converti il file in WAV se non è già in WAV
+                    if not file_path.endswith('.wav'):
+                        file_path = convert_to_wav(file_path)
+                        if not file_path:
+                            continue  # Salta il file se la conversione fallisce
+
                     # Carica il file audio utilizzando librosa in mono
                     y, sr = librosa.load(file_path, sr=None, mono=True)
+
+                    # Normalizza il segnale audio
+                    y = librosa.util.normalize(y)
 
                     # Debugging print statement before conversion
                     print(f"Processing file: {filename}")
@@ -41,7 +60,7 @@ def extract_audio_features(root_folder):
                     # Verifica i dettagli del file convertito
                     with sf.SoundFile(file_path) as f:
                         num_channels = f.channels
-                        bit_depth = sf.info(file_path).subtype_info.split(' ')[0]
+                        bit_depth = ' '.join(sf.info(file_path).subtype_info.split())
 
                     # Debugging print statements after conversion
                     print(f"Converted Channels: {num_channels}, Bit Depth: {bit_depth}")
@@ -92,43 +111,23 @@ def save_to_csv(data, output_file):
     df = pd.DataFrame(data)
     df.to_csv(output_file, index=False)
 
-def plot_audio_durations_histogram(durations, bins=100):
-    plt.figure(figsize=(12, 8))
-    sns.histplot(durations, bins=bins, kde=True)
-    plt.title('Distribuzione delle durate degli audio')
-    plt.xlabel('Durata (secondi)')
-    plt.ylabel('Frequenza')
-    plt.grid(True)
-    plt.show()
-
-def plot_audio_max_frequencies_histogram(max_internal_frequencies, bins=100):
-    plt.figure(figsize=(12, 8))
-    sns.histplot(max_internal_frequencies, bins=bins, kde=True)
-    plt.title('Distribuzione delle frequenze massime')
-    plt.xlabel('Frequenza massima')
-    plt.ylabel('Valore')
-    plt.grid(True)
-    plt.show()
-
-def plot_distribution_boxplot(values, title):
-    plt.figure(figsize=(10, 6))
-    plt.boxplot(values, vert=False)
-    plt.title(title)
-    plt.xlabel('Valore')
-    plt.grid(True)
-    plt.show()
 
 def plot_distribution(values, title, x_label):
+    # Conta le occorrenze di ciascun valore
     counter = Counter(values)
+
+    # Ordina i valori unici
     unique_values = sorted(counter.keys())
     counts = [counter[value] for value in unique_values]
 
+    # Crea un grafico di distribuzione utilizzando matplotlib
     plt.figure(figsize=(12, 8))
-    bar_width = 0.8
+    bar_width = 0.8  # Larghezza delle barre
     indices = range(len(unique_values))
 
-    bars = plt.bar(indices, counts, color='orange', edgecolor='black', width=bar_width)
+    bars = plt.bar(indices, counts, color='skyblue', edgecolor='black', width=bar_width)
 
+    # Aggiunge le etichette alle barre
     for bar, count in zip(bars, counts):
         height = bar.get_height()
         plt.text(bar.get_x() + bar.get_width() / 2, height, str(count), ha='center', va='bottom', fontsize=10)
@@ -142,7 +141,7 @@ def plot_distribution(values, title, x_label):
     plt.show()
 
 if __name__ == "__main__":
-    dataset_root = 'C://Users//mario//OneDrive//Desktop//Dataset - Copia - no duplicati//'
+    dataset_root = "C://Users//mario//OneDrive//Desktop//Dataset - senza_duplicati//"
 
     extracted_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths = extract_audio_features(dataset_root)
 
@@ -150,12 +149,7 @@ if __name__ == "__main__":
 
     save_to_csv(extracted_features, output_csv_file)
 
-    plot_distribution_boxplot(amplitudes, 'Distribuzione dei Valori di Ampiezza del Segnale')
-    plot_audio_durations_histogram(durations)
-    plot_distribution(frequencies, 'Distribuzione dei Valori di Frequenza', 'Frequenza (Hz)')
     plot_distribution(num_channels_list, 'Distribuzione dei Valori di Numero di Canali', 'Numero di Canali')
-    plot_distribution_boxplot(phases, 'Distribuzione dei Valori di Fase')
-    plot_audio_max_frequencies_histogram(max_internal_frequencies)
     plot_distribution(bit_depths, 'Distribuzione dei Valori di Bit Depth', 'Bit Depth')
 
     print(f"Il file CSV '{output_csv_file}' è stato creato con successo.")

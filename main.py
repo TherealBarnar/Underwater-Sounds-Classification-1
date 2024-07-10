@@ -6,9 +6,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import Counter
 
-
-
-
 def extract_audio_features(root_folder):
     # Lista per memorizzare le informazioni estratte
     audio_features = []
@@ -35,7 +32,8 @@ def extract_audio_features(root_folder):
                     # Usa soundfile per ottenere informazioni sul file audio
                     with sf.SoundFile(file_path) as f:
                         num_channels = f.channels
-                        bit_depth = sf.info(file_path).subtype_info.split(' ')[0]  # Estrai la profondità del bit
+
+                        bit_depth = ' '.join(sf.info(file_path).subtype_info.split())  # Estrai la profondità del bit
 
                     # Carica il file audio utilizzando librosa (senza convertire in mono)
                     y, sr = librosa.load(file_path, sr=None, mono=False)
@@ -71,7 +69,6 @@ def extract_audio_features(root_folder):
                     classe = os.path.basename(os.path.dirname(os.path.dirname(file_path)))
                     sottoclasse = os.path.basename(os.path.dirname(file_path))
 
-
                     audio_features.append({
                         'Nome file': file_name,
                         'Classe': classe,
@@ -91,13 +88,9 @@ def extract_audio_features(root_folder):
 
     return audio_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths
 
-
 def save_to_csv(data, output_file):
     df = pd.DataFrame(data)
-
-# Salva il DataFrame in un file CSV
     df.to_csv(output_file, index=False)
-
 
 def plot_audio_durations_histogram(durations, bins=100):
     plt.figure(figsize=(12, 8))
@@ -116,6 +109,7 @@ def plot_audio_max_frequencies_histogram(max_internal_frequencies, bins=100):
     plt.ylabel('Valore')
     plt.grid(True)
     plt.show()
+
 def plot_distribution_boxplot(values, title):
     plt.figure(figsize=(10, 6))
     plt.plot(values)
@@ -152,7 +146,6 @@ def plot_distribution(values, title, x_label):
     plt.grid(True, axis='y', linestyle='--', alpha=0.7)
     plt.tight_layout()
     plt.show()
-
 
 if __name__ == "__main__":
     # Specifica il percorso radice del dataset audio

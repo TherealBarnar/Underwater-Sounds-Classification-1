@@ -13,7 +13,8 @@ feature_extractor = WhisperFeatureExtractor.from_pretrained("openai/whisper-smal
 df = pd.read_csv("audio_features_dataset_no_duplicates.csv")
 dfpp = pd.read_csv("audio_features_dataset_prep.csv")
 
-file_audio = 'C://Users//mario//OneDrive//Desktop//Dataset - Copia - no duplicati//Non-Target//Right whale//RightWhale.wav'
+file_audio = 'C://Users//mario//OneDrive//Desktop//Dataset - senza_duplicati//Non-Target//Right whale//RightWhale.wav'
+cargo_ship = "C://Users//mario//OneDrive//Desktop//Cargo-Ship-at-20-knts.wav"
 
 def estrai_classe_target(file_path):
     # Filtra le righe dove la colonna 'classe' è 'Target'
@@ -288,7 +289,7 @@ def prep_plot_bit_depth_distribution(dfpp):
 
 def create_spectrogram(file_path, sr):
 
-    y, sr = librosa.load(file_audio, sr=sr)
+    y, sr = librosa.load(file_path, sr=sr)
 
     # Calcola lo spettrogramma della potenza
     S = librosa.feature.melspectrogram(y=y, sr=sr)
@@ -300,9 +301,54 @@ def create_spectrogram(file_path, sr):
     plt.figure(figsize=(10, 4))
     librosa.display.specshow(S_db, sr=sr, x_axis='time', y_axis='mel', cmap='magma')
     plt.colorbar(format='%+2.0f dB')
-    plt.title('Spectrogram')
+    plt.title(f'Spectrogram (Sample Rate: {sr} Hz)')
     plt.tight_layout()
     plt.show()
 
+
+def create_spectrogram_low_sr(file_path, sr):
+    # Carica il file audio con la frequenza di campionamento specificata
+    y, _ = librosa.load(file_path, sr=sr)
+
+    # Calcola lo spettrogramma della potenza con parametri aggiustati
+    S = librosa.feature.melspectrogram(y=y, sr=sr, n_mels=64, fmax=8000)
+
+    # Converte in decibel
+    S_db = librosa.power_to_db(S, ref=np.max)
+
+    # Mostra lo spettrogramma della potenza con sfondo nero
+    plt.figure(figsize=(10, 4))
+    librosa.display.specshow(S_db, sr=sr, x_axis='time', y_axis='mel', cmap='magma')
+    plt.colorbar(format='%+2.0f dB')
+    plt.title(f'Spectrogram (Sample Rate: {sr} Hz)')
+    plt.tight_layout()
+    plt.show()
+
+
+
+def plot_audio_waveform(file_path):
+
+    try:
+        # Carica il file audio utilizzando librosa
+        y, sr = librosa.load(file_path, sr=None, mono=True)
+
+        # Calcola il tempo in secondi per ciascun campione
+        time = np.linspace(0, len(y) / sr, len(y))
+
+        # Crea il grafico dell'ampiezza del segnale audio
+        plt.figure(figsize=(12, 6))
+        plt.plot(time, y, label='Ampiezza')
+        plt.title(f'Forma d\'onda del file audio: {file_path}')
+        plt.xlabel('Tempo (s)')
+        plt.ylabel('Ampiezza')
+        plt.grid(True)
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+    except Exception as e:
+        print(f"Errore durante l'elaborazione del file '{file_path}': {e}")
+
+
+
 if __name__ == "__main__":
-    create_spectrogram(file_audio, 44000)
+    plot_audio_waveform(cargo_ship)
