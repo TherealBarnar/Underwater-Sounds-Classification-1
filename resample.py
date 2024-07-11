@@ -7,27 +7,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import Counter
 
-def convert_to_wav(file_path):
-    try:
-        y, sr = librosa.load(file_path, sr=None, mono=True)
-        wav_file_path = os.path.splitext(file_path)[0] + '.wav'
-        sf.write(wav_file_path, y, sr, subtype='PCM_16')
-        return wav_file_path
-    except Exception as e:
-        print(f"Errore durante la conversione in WAV del file '{file_path}': {e}")
-        return None
-
-def delete_non_wav_files(root_folder):
-    for root, dirs, files in os.walk(root_folder):
-        for filename in files:
-            file_path = os.path.join(root, filename)
-            if not filename.endswith('.wav'):
-                try:
-                    os.remove(file_path)
-                    print(f"File non-WAV eliminato: {file_path}")
-                except Exception as e:
-                    print(f"Errore durante l'eliminazione del file '{file_path}': {e}")
-
 
 def extract_audio_features(root_folder):
     audio_features = []
@@ -46,12 +25,6 @@ def extract_audio_features(root_folder):
 
                 try:
                     file_path = str(file_path)
-
-                    # Converti il file in WAV se non è già in WAV
-                    if not file_path.endswith('.wav'):
-                        file_path = convert_to_wav(file_path)
-                        if not file_path:
-                            continue  # Salta il file se la conversione fallisce
 
                     # Carica il file audio utilizzando librosa in mono
                     y, sr = librosa.load(file_path, sr=None, mono=True)
@@ -152,14 +125,34 @@ def plot_distribution(values, title, x_label):
     plt.tight_layout()
     plt.show()
 
+def resample_dataset(dataset_path, sr):
+
+    # Ottieni la lista dei file nel dataset
+    files = os.listdir(dataset_path)
+
+    for file in files:
+        if file.endswith(
+                ".wav"):  # Assumiamo che i file siano in formato WAV, puoi aggiungere altri formati se necessario
+            file_path = os.path.join(dataset_path, file)
+
+            # Carica il file audio
+            y, _ = librosa.load(file_path, sr=None)
+
+            # Ricampiona il file audio alla frequenza di campionamento desiderata
+            y_resampled = librosa.resample(y, _, sr)
+
+            # Sovrascrivi il file originale con quello ricampionato
+            librosa.output.write_wav(file_path, y_resampled, sr)
+
+            print(f"File {file} ricampionato a {sr} Hz e sovrascritto.")
+
+
 if __name__ == "__main__":
-    dataset_root = "C://Users//mario//OneDrive//Desktop//Dataset - senza_duplicati//"
+    dataset_root = "C://Users//mario//OneDrive//Desktop//Dataset - normalizzato//"
 
     extracted_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths = extract_audio_features(dataset_root)
 
-    delete_non_wav_files(dataset_root)  # Elimina i file non WAV
-
-    output_csv_file = 'audio_features_dataset_prep.csv'
+    output_csv_file = 'audio_features_dataset_96000.csv'
 
     save_to_csv(extracted_features, output_csv_file)
 
@@ -167,3 +160,5 @@ if __name__ == "__main__":
     plot_distribution(bit_depths, 'Distribuzione dei Valori di Bit Depth', 'Bit Depth')
 
     print(f"Il file CSV '{output_csv_file}' è stato creato con successo.")
+
+
