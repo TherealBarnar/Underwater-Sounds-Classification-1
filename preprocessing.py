@@ -124,33 +124,6 @@ def save_to_csv(data, output_file):
     df.to_csv(output_file, index=False)
 
 
-def plot_distribution(values, title, x_label):
-    # Conta le occorrenze di ciascun valore
-    counter = Counter(values)
-
-    # Ordina i valori unici
-    unique_values = sorted(counter.keys())
-    counts = [counter[value] for value in unique_values]
-
-    # Crea un grafico di distribuzione utilizzando matplotlib
-    plt.figure(figsize=(12, 8))
-    bar_width = 0.8  # Larghezza delle barre
-    indices = range(len(unique_values))
-
-    bars = plt.bar(indices, counts, color='skyblue', edgecolor='black', width=bar_width)
-
-    # Aggiunge le etichette alle barre
-    for bar, count in zip(bars, counts):
-        height = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width() / 2, height, str(count), ha='center', va='bottom', fontsize=10)
-
-    plt.title(title, fontsize=16)
-    plt.xlabel(x_label, fontsize=14)
-    plt.ylabel('Occorrenze', fontsize=14)
-    plt.xticks(indices, unique_values, rotation=45, ha='right')
-    plt.grid(True, axis='y', linestyle='--', alpha=0.7)
-    plt.tight_layout()
-    plt.show()
 
 if __name__ == "__main__":
     dataset_root = "C://Users//mario//OneDrive//Desktop//Dataset - senza_duplicati//"
@@ -162,8 +135,5 @@ if __name__ == "__main__":
     output_csv_file = 'audio_features_dataset_prep.csv'
 
     save_to_csv(extracted_features, output_csv_file)
-
-    plot_distribution(num_channels_list, 'Distribuzione dei Valori di Numero di Canali', 'Numero di Canali')
-    plot_distribution(bit_depths, 'Distribuzione dei Valori di Bit Depth', 'Bit Depth')
 
     print(f"Il file CSV '{output_csv_file}' è stato creato con successo.")

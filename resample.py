@@ -2,10 +2,6 @@ import os
 import librosa
 import soundfile as sf
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from collections import Counter
 
 
 def extract_audio_features(root_folder):
@@ -29,26 +25,13 @@ def extract_audio_features(root_folder):
                     # Carica il file audio utilizzando librosa in mono
                     y, sr = librosa.load(file_path, sr=None, mono=True)
 
-                    # Normalizza il segnale audio
-                    y = librosa.util.normalize(y)
-
-                    # Debugging print statement before conversion
-                    print(f"Processing file: {filename}")
+                    # Debugging print statement before extraction
+                    print(f"Processing file: {file_path}")
                     print(f"Loaded audio shape: {y.shape}, dtype: {y.dtype}")
 
-                    # Converti y in formato 16-bit prima di scriverlo
-                    y_16bit = np.int16(y * 32767)
-
-                    # Sovrascrivi l'audio convertito come 16-bit con soundfile
-                    sf.write(file_path, y_16bit, sr, subtype='PCM_16')
-
-                    # Verifica i dettagli del file convertito
                     with sf.SoundFile(file_path) as f:
                         num_channels = f.channels
                         bit_depth = ' '.join(sf.info(file_path).subtype_info.split())
-
-                    # Debugging print statements after conversion
-                    print(f"Converted Channels: {num_channels}, Bit Depth: {bit_depth}")
 
                     amplitude = max(abs(y))
                     duration = librosa.get_duration(y=y, sr=sr)
@@ -88,77 +71,49 @@ def extract_audio_features(root_folder):
                     })
 
                 except Exception as e:
-                    print(f"Errore durante l'elaborazione del file '{filename}': {e}")
+                    print(f"Errore durante l'elaborazione del file '{file_path}': {e}")
 
     return audio_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths
+
 
 def save_to_csv(data, output_file):
     df = pd.DataFrame(data)
     df.to_csv(output_file, index=False)
 
 
-def plot_distribution(values, title, x_label):
-    # Conta le occorrenze di ciascun valore
-    counter = Counter(values)
-
-    # Ordina i valori unici
-    unique_values = sorted(counter.keys())
-    counts = [counter[value] for value in unique_values]
-
-    # Crea un grafico di distribuzione utilizzando matplotlib
-    plt.figure(figsize=(12, 8))
-    bar_width = 0.8  # Larghezza delle barre
-    indices = range(len(unique_values))
-
-    bars = plt.bar(indices, counts, color='skyblue', edgecolor='black', width=bar_width)
-
-    # Aggiunge le etichette alle barre
-    for bar, count in zip(bars, counts):
-        height = bar.get_height()
-        plt.text(bar.get_x() + bar.get_width() / 2, height, str(count), ha='center', va='bottom', fontsize=10)
-
-    plt.title(title, fontsize=16)
-    plt.xlabel(x_label, fontsize=14)
-    plt.ylabel('Occorrenze', fontsize=14)
-    plt.xticks(indices, unique_values, rotation=45, ha='right')
-    plt.grid(True, axis='y', linestyle='--', alpha=0.7)
-    plt.tight_layout()
-    plt.show()
-
 def resample_dataset(dataset_path, sr):
-
     # Ottieni la lista dei file nel dataset
-    files = os.listdir(dataset_path)
+    for root, dirs, files in os.walk(dataset_path):
+        for file in files:
+            if file.endswith(".wav"):
+                file_path = os.path.join(root, file)
 
-    for file in files:
-        if file.endswith(
-                ".wav"):  # Assumiamo che i file siano in formato WAV, puoi aggiungere altri formati se necessario
-            file_path = os.path.join(dataset_path, file)
+                try:
+                    # Carica il file audio
+                    y, original_sr = librosa.load(file_path, sr=None)
 
-            # Carica il file audio
-            y, _ = librosa.load(file_path, sr=None)
+                    # Ricampiona il file audio alla frequenza di campionamento desiderata
+                    y_resampled = librosa.resample(y, orig_sr=original_sr, target_sr=sr)
 
-            # Ricampiona il file audio alla frequenza di campionamento desiderata
-            y_resampled = librosa.resample(y, _, sr)
+                    # Sovrascrivi il file originale con quello ricampionato
+                    sf.write(file_path, y_resampled, sr)
 
-            # Sovrascrivi il file originale con quello ricampionato
-            librosa.output.write_wav(file_path, y_resampled, sr)
+                    print(f"File {file_path} ricampionato a {sr} Hz e sovrascritto.")
 
-            print(f"File {file} ricampionato a {sr} Hz e sovrascritto.")
+                except Exception as e:
+                    print(f"Errore durante il ricampionamento del file '{file_path}': {e}")
 
 
 if __name__ == "__main__":
     dataset_root = "C://Users//mario//OneDrive//Desktop//Dataset - normalizzato//"
 
-    extracted_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths = extract_audio_features(dataset_root)
+    # Resample the dataset before extracting features
+    resample_dataset(dataset_root, 96000)
+
+    # Extract features after resampling
+    extracted_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths = extract_audio_features(
+        dataset_root)
 
     output_csv_file = 'audio_features_dataset_96000.csv'
-
     save_to_csv(extracted_features, output_csv_file)
-
-    plot_distribution(num_channels_list, 'Distribuzione dei Valori di Numero di Canali', 'Numero di Canali')
-    plot_distribution(bit_depths, 'Distribuzione dei Valori di Bit Depth', 'Bit Depth')
-
     print(f"Il file CSV '{output_csv_file}' è stato creato con successo.")
-
-
