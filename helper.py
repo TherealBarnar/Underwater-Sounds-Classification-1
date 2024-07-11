@@ -5,13 +5,10 @@ from collections import Counter
 import librosa
 import os
 import numpy as np
-from matplotlib.colors import LogNorm
-from transformers import WhisperFeatureExtractor   #estrattore di dati grezzi; whisper è modello pre addestrato per il riconoscimento vocale
 
-feature_extractor = WhisperFeatureExtractor.from_pretrained("openai/whisper-small")
 
 df = pd.read_csv("audio_features_dataset_no_duplicates.csv")
-dfpp = pd.read_csv("audio_features_dataset_prep.csv")
+
 
 file_audio = 'C://Users//mario//OneDrive//Desktop//Dataset - senza_duplicati//Non-Target//Right whale//RightWhale.wav'
 cargo_ship = "C://Users//mario//OneDrive//Desktop//Cargo-Ship-at-20-knts.wav"
@@ -238,9 +235,9 @@ def plot_combined_duration_distribution(dfTarget, dfNoTarget):
     plt.show()
 
 
-def prep_plot_channel_distribution(dfpp):
+def prep_plot_channel_distribution(dataframe):
     # Contare le occorrenze dei diversi numeri di canali
-    channel_counts = dfpp['Numero di canali'].value_counts().sort_index()
+    channel_counts = dataframe['Numero di canali'].value_counts().sort_index()
 
     # Creare il grafico
     plt.figure(figsize=(10, 6))
@@ -261,9 +258,9 @@ def prep_plot_channel_distribution(dfpp):
     plt.show()
 
 
-def prep_plot_bit_depth_distribution(dfpp):
+def prep_plot_bit_depth_distribution(dataframe):
     # Contare le occorrenze dei diversi bit depth
-    bit_depth_counts = dfpp['Bit Depth'].value_counts().sort_index()
+    bit_depth_counts = dataframe['Bit Depth'].value_counts().sort_index()
 
     # Creare il grafico
     plt.figure(figsize=(10, 6))
