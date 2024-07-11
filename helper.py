@@ -9,10 +9,6 @@ import numpy as np
 
 df = pd.read_csv("audio_features_dataset_no_duplicates.csv")
 
-
-file_audio = 'C://Users//mario//OneDrive//Desktop//Dataset - senza_duplicati//Non-Target//Right whale//RightWhale.wav'
-cargo_ship = "C://Users//mario//OneDrive//Desktop//Cargo-Ship-at-20-knts.wav"
-
 def estrai_classe_target(file_path):
     # Filtra le righe dove la colonna 'classe' è 'Target'
     df_target = df[df['Classe'] == 'Target']
@@ -64,7 +60,6 @@ def sample_counterNot(dfNoTarget):
 
 
 def plot_frequency_distribution(dfTarget):
-    # Rimuovi eventuali valori NaN risultanti dalla conversione
     dfTarget = dfTarget.dropna(subset=['Frequenza'])
 
     # Conta le occorrenze di ciascuna frequenza
@@ -322,6 +317,74 @@ def create_spectrogram_low_sr(file_path, sr):
     plt.show()
 
 
+def subplot(base_path, sr):
+    base_dir = os.path.dirname(base_path)
+    base_name = os.path.basename(base_path)
+
+    if not os.path.exists(base_dir):
+        print(f"La directory {base_dir} non esiste.")
+        return
+
+    # Trova tutti i file che iniziano con base_name
+    segment_files = [f for f in os.listdir(base_dir) if f.startswith(base_name)]
+
+    if not segment_files:
+        print(f"Nessun file trovato che inizi con {base_name} in {base_dir}.")
+        return
+
+    # Ordina i file trovati in ordine alfabetico
+    segment_files.sort()
+
+    num_plots = min(len(segment_files), 16)  # Mostra al massimo 16 spettrogrammi (4x4)
+
+    # Calcola il numero di righe e colonne per la griglia
+    num_cols = 4
+    num_rows = (num_plots + num_cols - 1) // num_cols  # Calcolo per arrotondare verso l'alto
+
+    # Aumenta la larghezza dell'intera figura
+    figsize_width = 30 # Larghezza desiderata della figura in pollici (aumentata da 25 a 30)
+    figsize_height = 6 * num_rows  # Altezza proporzionale alla griglia di subplot (aumentata da 4 a 6)
+
+    # Creazione del subplot con dimensioni aumentate
+    if num_rows == 1 or num_cols == 1:
+        fig, axes = plt.subplots(1, num_plots, figsize=(figsize_width, figsize_height))
+    else:
+        fig, axes = plt.subplots(num_rows, num_cols, figsize=(figsize_width, figsize_height))
+
+    # Assicurati che axes sia sempre una lista di assi
+    if isinstance(axes, np.ndarray):
+        axes = axes.flatten()
+
+    # Genera e disegna gli spettrogrammi per ogni file trovato
+    for i, segment_file in enumerate(segment_files[:num_plots]):
+        segment_path = os.path.join(base_dir, segment_file)
+        if os.path.exists(segment_path):
+            # Carica l'audio utilizzando librosa
+            y, _ = librosa.load(segment_path, sr=sr)
+
+            # Calcola lo spettrogramma
+            spectrogram = librosa.feature.melspectrogram(y=y, sr=sr)
+            spectrogram_db = librosa.power_to_db(spectrogram, ref=np.max)
+
+            # Disegna lo spettrogramma nella posizione corretta del subplot
+            ax = axes[i]
+
+            img = librosa.display.specshow(spectrogram_db, sr=sr, x_axis='time', y_axis='mel', ax=ax)
+            ax.set_title(os.path.splitext(segment_file)[0])
+            ax.set_xlabel('Tempo')
+            ax.set_ylabel('Frequenza (Mel)')
+
+            # Aggiungi la barra dei colori per l'ultimo grafico
+            if i == num_plots - 1:
+                fig.colorbar(img, ax=ax, format='%+2.0f dB')
+
+        else:
+            print(f"Il file {segment_path} non esiste.")
+
+    # Aggiusta lo spaziamento tra i subplots
+    plt.tight_layout()
+    plt.show()
+
 
 def plot_audio_waveform(file_path):
 
@@ -347,5 +410,3 @@ def plot_audio_waveform(file_path):
 
 
 
-if __name__ == "__main__":
-    plot_audio_waveform(cargo_ship)
