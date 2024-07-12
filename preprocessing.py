@@ -3,9 +3,7 @@ import librosa
 import soundfile as sf
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from collections import Counter
+
 
 def convert_to_wav(file_path):
     try:

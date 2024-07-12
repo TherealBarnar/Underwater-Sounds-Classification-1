@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
-from collections import Counter
 import librosa
 import os
 import numpy as np
@@ -279,7 +278,7 @@ def prep_plot_bit_depth_distribution(dataframe):
     plt.show()
 
 
-def create_spectrogram(file_path, sr):
+def create_spectrogram(file_path, sr, title):
 
     y, sr = librosa.load(file_path, sr=sr)
 
@@ -293,7 +292,7 @@ def create_spectrogram(file_path, sr):
     plt.figure(figsize=(10, 4))
     librosa.display.specshow(S_db, sr=sr, x_axis='time', y_axis='mel', cmap='magma')
     plt.colorbar(format='%+2.0f dB')
-    plt.title(f'Spectrogram (Sample Rate: {sr} Hz)')
+    plt.title(title)  # Utilizza il titolo passato come parametro
     plt.tight_layout()
     plt.show()
 
