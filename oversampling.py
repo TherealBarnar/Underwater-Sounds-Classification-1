@@ -56,7 +56,7 @@ def process_audio_files_and_create_csv(directory, output_file):
                         "Nome file": file_name,
                         "Classe": classe,
                         "Sottoclasse": sottoclasse,
-                        "Durata": duration,  # Converti in secondi
+                        "Durata": duration,
                     })
 
                     file_count += 1  # Incrementa il contatore di file aggiunti al CSV
