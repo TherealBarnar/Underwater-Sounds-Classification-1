@@ -5,35 +5,61 @@ import pandas as pd
 from scipy.stats import skew, kurtosis
 from scipy.stats import entropy
 
-# Funzione per estrarre le caratteristiche da un singolo file audio
+# Funzione per calcolare il centroid spettrale
+def calculate_spectral_centroid(y, sr):
+    spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
+    return np.mean(spectral_centroid)
+
+# Funzione per calcolare la larghezza di banda spettrale
+def calculate_spectral_bandwidth(y, sr):
+    spectral_bandwidth = librosa.feature.spectral_bandwidth(y=y, sr=sr)
+    return np.mean(spectral_bandwidth)
+
+# Funzione per calcolare la deviazione standard del segnale
+def calculate_std_dev(y):
+    return np.std(y)
+
+# Funzione per calcolare la skewness
+def calculate_skewness(y):
+    return skew(y)
+
+# Funzione per calcolare la kurtosis
+def calculate_kurtosis(y):
+    return kurtosis(y)
+
+# Funzione per calcolare l'entropia di Shannon
+def calculate_shannon_entropy(y):
+    histogram, _ = np.histogram(y, bins=256, density=True)
+    return entropy(histogram)
+
+# Funzione per calcolare l'energia media dei MFCC
+def calculate_mfcc_mean_energy(y, sr):
+    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=1)
+    return np.mean(mfcc)
+
+# Funzione per calcolare i passaggi di soglia
+def calculate_threshold_crossings(y, threshold=0.01):
+    return np.sum(np.abs(np.diff(y > threshold)))
+
+# Funzione per calcolare il rapporto di silenzio
+def calculate_silence_ratio(y, threshold=0.01):
+    return np.sum(y < threshold) / len(y)
+
+# Funzione per estrarre tutte le caratteristiche
 def extract_features(file_path):
     try:
         y, sr = librosa.load(file_path, sr=None)
 
-        # Calcolo delle caratteristiche richieste
-        spectral_centroid = librosa.feature.spectral_centroid(y=y, sr=sr)
-        spectral_centroid_mean = np.mean(spectral_centroid)
-
-        spectral_bandwidth = librosa.feature.spectral_bandwidth(y=y, sr=sr)
-        spectral_bandwidth_rms = np.mean(spectral_bandwidth)
-
-        std_dev = np.std(y)
-
-        skewness = skew(y)
-
-        kurt = kurtosis(y)
-
-        histogram, _ = np.histogram(y, bins=256, density=True)
-        shannon_entropy = entropy(histogram)
-
-        # Calcola solo il primo coefficiente MFCC (energia totale)
-        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=1)
-        mfcc_mean_energy = np.mean(mfcc)
-
-        threshold = 0.01
-        threshold_crossings = np.sum(np.abs(np.diff(y > threshold)))
-
-        silence_ratio = np.sum(y < threshold) / len(y)
+        # Estrazione delle caratteristiche
+        spectral_centroid_mean = calculate_spectral_centroid(y, sr)
+        spectral_bandwidth_rms = calculate_spectral_bandwidth(y, sr)
+        std_dev = calculate_std_dev(y)
+        skewness = calculate_skewness(y)
+        kurt = calculate_kurtosis(y)
+        shannon_entropy = calculate_shannon_entropy(y)
+        mfcc_mean_energy = calculate_mfcc_mean_energy(y, sr)
+        threshold_crossings = calculate_threshold_crossings(y)
+        silence_ratio = calculate_silence_ratio(y)
 
         return [
             spectral_centroid_mean,
@@ -42,7 +68,7 @@ def extract_features(file_path):
             skewness,
             kurt,
             shannon_entropy,
-            mfcc_mean_energy,  # Aggiunge il coefficiente MFCC dell'energia totale
+            mfcc_mean_energy,
             threshold_crossings,
             silence_ratio
         ]

@@ -1,1 +1,12 @@
 dataset/
+multiclass_classification/SVM_model.pkl
+multiclass_classification/Random Forest_model.pkl
+multiclass_classification/Logistic Regression_model.pkl
+multiclass_classification/KNN_model.pkl
+multiclass_classification/Gradient Boosting_model.pkl
+binary_classification/XGBoost_model.pkl
+binary_classification/SVM_model.pkl
+binary_classification/Random_Forest_model.pkl
+binary_classification/Logistic_Regression_model.pkl
+binary_classification/KNN_model.pkl
+binary_classification/Gradient_Boosting_model.pkl
