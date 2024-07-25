@@ -149,7 +149,7 @@ def plot_distribution(values, title, x_label):
 
 if __name__ == "__main__":
     # Specifica il percorso radice del dataset audio
-    dataset_root = 'C://Users//mario//OneDrive//Desktop//Dataset - Copia//'
+    dataset_root = 'C://Users//mario//OneDrive//Desktop//Dataset - originale_con_duplicati'
 
     # Estrai le informazioni audio dal dataset
     extracted_features, amplitudes, durations, frequencies, num_channels_list, phases, max_internal_frequencies, bit_depths = extract_audio_features(dataset_root)
@@ -159,14 +159,5 @@ if __name__ == "__main__":
 
     # Salva le informazioni estratte in un file CSV
     save_to_csv(extracted_features, output_csv_file)
-
-    # Genera i grafici di distribuzione per ciascuna caratteristica
-    plot_distribution_boxplot(amplitudes, 'Distribuzione dei Valori di Ampiezza del Segnale')
-    plot_audio_durations_histogram(durations)
-    plot_distribution(frequencies, 'Distribuzione dei Valori di Frequenza', 'Frequenza (Hz)')
-    plot_distribution(num_channels_list, 'Distribuzione dei Valori di Numero di Canali', 'Numero di Canali')
-    plot_distribution_boxplot(phases, 'Distribuzione dei Valori di Fase')
-    plot_audio_max_frequencies_histogram(max_internal_frequencies)
-    plot_distribution(bit_depths, 'Distribuzione dei Valori di Bit Depth', 'Bit Depth')
 
     print(f"Il file CSV '{output_csv_file}' è stato creato con successo.")
