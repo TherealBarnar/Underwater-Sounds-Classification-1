@@ -3,7 +3,11 @@ from sklearn.model_selection import train_test_split
 from imblearn.over_sampling import SMOTE
 from sklearn.preprocessing import LabelEncoder
 from sklearn.impute import SimpleImputer
-
+from sklearn.svm import SVC
+from sklearn.metrics import classification_report, accuracy_score
+from tqdm import tqdm
+from sklearn.ensemble import RandomForestClassifier
+import numpy as np
 
 def split_dataset(csv_file, train_size=0.8, val_size=0.1, test_size=0.1):
     """
@@ -119,4 +123,40 @@ def apply_smote(X_train, y_train):
     print(f"Distribuzione delle classi nel set di training dopo SMOTE:\n{pd.Series(y_train_resampled).value_counts()}")
 
     return X_train_resampled, y_train_resampled
+
+
+def train_random_forest(X_train, y_train, X_val, y_val, n_steps=10):
+    """
+    Addestra un modello di Random Forest sul set di addestramento
+    e valuta le sue prestazioni sul set di validazione.
+    """
+    # Inizializza il modello Random Forest
+    rf_model = RandomForestClassifier(random_state=42)
+
+    # Suddividi artificialmente il set di addestramento in step per simulare l'avanzamento
+    data_size = len(X_train)
+    step_size = data_size // n_steps
+
+    for step in tqdm(range(n_steps), desc="Training Progress"):
+        start = step * step_size
+        end = (step + 1) * step_size if (step + 1) * step_size < data_size else data_size
+
+        # Fit con un blocco incrementale dei dati
+        rf_model.fit(X_train[:end], y_train[:end])
+
+    # Previsioni sul set di validazione
+    y_val_pred = rf_model.predict(X_val)
+
+    # Controlla la distribuzione delle classi reali e predette
+    print("Distribuzione delle classi reali:", np.bincount(y_val))
+    print("Distribuzione delle classi predette:", np.bincount(y_val_pred))
+
+    # Valuta il modello con il parametro zero_division per evitare l'avviso
+    print("Report di classificazione del set di validazione:")
+    print(classification_report(y_val, y_val_pred, zero_division=1))
+
+    accuracy = accuracy_score(y_val, y_val_pred)
+    print(f"Accuratezza sul set di validazione: {accuracy:.4f}")
+
+    return rf_model
 
