@@ -45,7 +45,11 @@ def extract_audio_features(root_folder):
                     phases.append(phase)
                     bit_depths.append(bit_depth)
 
-                    pitches, magnitudes = librosa.core.piptrack(y=y, sr=sr, n_fft=512)
+                    # Calcolo dinamico di n_fft come una frazione della lunghezza del segnale
+                    n_fft = min(2048, max(2, len(y) // 10))  # Imposta n_fft a un valore massimo di 2048 e almeno 2 campioni
+
+                    # Estrazione delle caratteristiche usando il valore dinamico di n_fft
+                    pitches, magnitudes = librosa.core.piptrack(y=y, sr=sr, n_fft=n_fft)
                     max_idx = magnitudes.argmax()
                     max_time_idx = max_idx // magnitudes.shape[0]
                     max_freq_idx = max_idx % magnitudes.shape[0]
@@ -67,6 +71,7 @@ def extract_audio_features(root_folder):
                         'Fase': phase,
                         'Frequenza massima interna': max_internal_frequency,
                         'Bit Depth': bit_depth,
+                        'n_fft': n_fft,
                         'Forma d\'onda': y.shape
                     })
 

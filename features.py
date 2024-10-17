@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import skew, kurtosis
 from scipy.stats import entropy
+from tqdm import tqdm  # Importa tqdm per la progress bar
 
 # Funzione per calcolare il centroid spettrale
 def calculate_spectral_centroid(y, sr):
@@ -32,10 +33,23 @@ def calculate_shannon_entropy(y):
     histogram, _ = np.histogram(y, bins=256, density=True)
     return entropy(histogram)
 
-# Funzione per calcolare l'energia media dei MFCC
-def calculate_mfcc_mean_energy(y, sr):
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=1)
-    return np.mean(mfcc)
+# Funzione per calcolare l'entropia di Renyi
+def calculate_renyi_entropy(y, alpha=2):
+    if alpha <= 0 or alpha == 1:
+        raise ValueError("Alpha must be greater than 0 and not equal to 1")
+    histogram, _ = np.histogram(y, bins=256, density=True)
+    histogram = histogram[histogram > 0]  # Rimuove gli zeri
+    return 1 / (1 - alpha) * np.log(np.sum(histogram ** alpha))
+
+# Funzione per calcolare il tasso di attacco (rate of attack)
+def calculate_rate_of_attack(y, sr):
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+    return np.mean(librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr))
+
+# Funzione per calcolare il tasso di decadimento (rate of decay)
+def calculate_rate_of_decay(y):
+    decay = np.diff(y)
+    return np.mean(np.abs(decay[decay < 0]))
 
 # Funzione per calcolare i passaggi di soglia
 def calculate_threshold_crossings(y, threshold=0.01):
@@ -44,6 +58,22 @@ def calculate_threshold_crossings(y, threshold=0.01):
 # Funzione per calcolare il rapporto di silenzio
 def calculate_silence_ratio(y, threshold=0.01):
     return np.sum(y < threshold) / len(y)
+
+# Funzione per calcolare la media
+def calculate_mean(y):
+    return np.mean(y)
+
+# Funzione per calcolare il massimo sulla media
+def calculate_max_over_mean(y):
+    return np.max(y) / np.mean(y)
+
+# Funzione per calcolare il minimo sulla media
+def calculate_min_over_mean(y):
+    return np.min(y) / np.mean(y)
+
+# Funzione per calcolare l'energia media
+def calculate_energy_measurements(y):
+    return np.sum(y ** 2) / len(y)
 
 # Funzione per estrarre tutte le caratteristiche
 def extract_features(file_path):
@@ -57,9 +87,15 @@ def extract_features(file_path):
         skewness = calculate_skewness(y)
         kurt = calculate_kurtosis(y)
         shannon_entropy = calculate_shannon_entropy(y)
-        mfcc_mean_energy = calculate_mfcc_mean_energy(y, sr)
+        renyi_entropy = calculate_renyi_entropy(y)
+        rate_of_attack = calculate_rate_of_attack(y, sr)
+        rate_of_decay = calculate_rate_of_decay(y)
         threshold_crossings = calculate_threshold_crossings(y)
         silence_ratio = calculate_silence_ratio(y)
+        mean = calculate_mean(y)
+        max_over_mean = calculate_max_over_mean(y)
+        min_over_mean = calculate_min_over_mean(y)
+        energy_measurements = calculate_energy_measurements(y)
 
         return [
             spectral_centroid_mean,
@@ -68,9 +104,15 @@ def extract_features(file_path):
             skewness,
             kurt,
             shannon_entropy,
-            mfcc_mean_energy,
+            renyi_entropy,
+            rate_of_attack,
+            rate_of_decay,
             threshold_crossings,
-            silence_ratio
+            silence_ratio,
+            mean,
+            max_over_mean,
+            min_over_mean,
+            energy_measurements
         ]
     except Exception as e:
         print(f"Errore durante l'elaborazione di {file_path}: {str(e)}")
@@ -84,24 +126,27 @@ def extract_features_from_directory(audio_directory):
     subclasses = []
 
     # Utilizzo di os.walk per esplorare ricorsivamente la directory e le sottocartelle
-    for root, _, files in os.walk(audio_directory):
-        for filename in files:
-            file_path = os.path.join(root, filename)
+    files = []
+    for root, _, filenames in os.walk(audio_directory):
+        for filename in filenames:
             if filename.endswith('.wav'):
-                print(f"Processing file: {filename}")  # Stampa il nome del file in elaborazione
-                features = extract_features(file_path)
-                if features is not None:
-                    features_list.append(features)
-                    file_names.append(filename)
-                    # Ottieni classe e sottoclasse dalla struttura della directory
-                    rel_path = os.path.relpath(file_path, audio_directory)
-                    path_parts = rel_path.split(os.sep)
-                    class_name = path_parts[0] if len(path_parts) > 1 else 'Unknown'
-                    subclass_name = path_parts[1] if len(path_parts) > 2 else 'Unknown'
-                    classes.append(class_name)
-                    subclasses.append(subclass_name)
-                else:
-                    print(f"Caratteristiche non estratte per {file_path}")
+                files.append(os.path.join(root, filename))
+
+    # Utilizzo di tqdm per la progress bar durante l'elaborazione di tutti i file
+    for file_path in tqdm(files, desc="Processing audio files", unit="file"):
+        features = extract_features(file_path)
+        if features is not None:
+            features_list.append(features)
+            file_names.append(os.path.basename(file_path))
+            # Ottieni classe e sottoclasse dalla struttura della directory
+            rel_path = os.path.relpath(file_path, audio_directory)
+            path_parts = rel_path.split(os.sep)
+            class_name = path_parts[0] if len(path_parts) > 1 else 'Unknown'
+            subclass_name = path_parts[1] if len(path_parts) > 2 else 'Unknown'
+            classes.append(class_name)
+            subclasses.append(subclass_name)
+        else:
+            print(f"Caratteristiche non estratte per {file_path}")
 
     columns = [
         'File Name',
@@ -113,9 +158,15 @@ def extract_features_from_directory(audio_directory):
         'Skewness',
         'Kurtosis',
         'Shannon Entropy',
-        'MFCC Mean Energy',
+        'Renyi Entropy',
+        'Rate of Attack',
+        'Rate of Decay',
         'Threshold Crossings',
-        'Silence Ratio'
+        'Silence Ratio',
+        'Mean',
+        'Max Over Mean',
+        'Min Over Mean',
+        'Energy Measurements'
     ]
 
     df = pd.DataFrame(features_list, columns=columns[3:])

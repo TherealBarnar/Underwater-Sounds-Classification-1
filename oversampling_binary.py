@@ -8,6 +8,8 @@ from sklearn.metrics import classification_report, accuracy_score
 from tqdm import tqdm
 from sklearn.ensemble import RandomForestClassifier
 import numpy as np
+from sklearn.svm import SVC
+import lightgbm as lgb
 
 def split_dataset(csv_file, train_size=0.8, val_size=0.1, test_size=0.1):
     """
@@ -160,3 +162,75 @@ def train_random_forest(X_train, y_train, X_val, y_val, n_steps=10):
 
     return rf_model
 
+
+def train_svm(X_train, y_train, X_val, y_val):
+    """
+    Addestra un modello di Support Vector Machine (SVM) sul set di addestramento
+    e valuta le sue prestazioni sul set di validazione.
+    """
+    # Inizializza il modello SVM
+    svm_model = SVC(random_state=42)
+
+    # Addestra il modello
+    svm_model.fit(X_train, y_train)
+
+    # Previsioni sul set di validazione
+    y_val_pred = svm_model.predict(X_val)
+
+    # Controlla la distribuzione delle classi reali e predette
+    print("Distribuzione delle classi reali:", np.bincount(y_val))
+    print("Distribuzione delle classi predette:", np.bincount(y_val_pred))
+
+    # Valuta il modello con il parametro zero_division per evitare l'avviso
+    print("Report di classificazione del set di validazione:")
+    print(classification_report(y_val, y_val_pred, zero_division=1))
+
+    accuracy = accuracy_score(y_val, y_val_pred)
+    print(f"Accuratezza sul set di validazione: {accuracy:.4f}")
+
+    return svm_model
+
+def train_lightgbm(X_train, y_train, X_val, y_val, n_steps=10):
+    """
+    Addestra un modello di LightGBM sul set di addestramento
+    e valuta le sue prestazioni sul set di validazione.
+
+    Args:
+        X_train (ndarray): Caratteristiche del set di addestramento.
+        y_train (ndarray): Target del set di addestramento.
+        X_val (ndarray): Caratteristiche del set di validazione.
+        y_val (ndarray): Target del set di validazione.
+        n_steps (int): Numero di passaggi per l'addestramento incrementale.
+
+    Returns:
+        lgb_model: Il modello di LightGBM addestrato.
+    """
+    # Inizializza il modello LightGBM
+    lgb_model = lgb.LGBMClassifier(random_state=42)
+
+    # Suddividi artificialmente il set di addestramento in step per simulare l'avanzamento
+    data_size = len(X_train)
+    step_size = data_size // n_steps
+
+    for step in tqdm(range(n_steps), desc="Training Progress"):
+        start = step * step_size
+        end = (step + 1) * step_size if (step + 1) * step_size < data_size else data_size
+
+        # Fit con un blocco incrementale dei dati
+        lgb_model.fit(X_train[:end], y_train[:end])
+
+    # Previsioni sul set di validazione
+    y_val_pred = lgb_model.predict(X_val)
+
+    # Controlla la distribuzione delle classi reali e predette
+    print("Distribuzione delle classi reali:", np.bincount(y_val))
+    print("Distribuzione delle classi predette:", np.bincount(y_val_pred))
+
+    # Valuta il modello con il parametro zero_division per evitare l'avviso
+    print("Report di classificazione del set di validazione:")
+    print(classification_report(y_val, y_val_pred, zero_division=1))
+
+    accuracy = accuracy_score(y_val, y_val_pred)
+    print(f"Accuratezza sul set di validazione: {accuracy:.4f}")
+
+    return lgb_model
