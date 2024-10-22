@@ -97,27 +97,44 @@ def apply_smote_multiclass(X_train, y_train, k_neighbors=1):
     return X_train_resampled, y_train_resampled
 
 
-def train_random_forest_multiclass(X_train, y_train, X_val, y_val, n_steps=10):
+def train_random_forest_multiclass(X_train, y_train, X_val, y_val, X_test, y_test, n_steps=10, min_samples_threshold=5):
     """
     Addestra un modello di Random Forest sul set di addestramento
-    e valuta le sue prestazioni sul set di validazione con cross-validation
-    e tuning degli iperparametri.
+    e valuta le sue prestazioni sul set di validazione e sul set di test
+    con cross-validation e tuning degli iperparametri.
+
+    Ignora le sottoclassi con meno di `min_samples_threshold` campioni.
     """
     # Verifica la distribuzione delle classi
     class_counts = Counter(y_train)
     print("Distribuzione delle classi nel set di addestramento:", class_counts)
 
+    # Filtra le sottoclassi con campioni insufficienti
+    valid_classes = [cls for cls, count in class_counts.items() if count >= min_samples_threshold]
+    print(f"Sottoclassi valide (con almeno {min_samples_threshold} campioni): {valid_classes}")
+
+    # Filtra il dataset
+    mask = np.isin(y_train, valid_classes)
+    X_train_filtered = X_train[mask]
+    y_train_filtered = y_train[mask]
+
+    # Verifica la distribuzione delle classi dopo il filtro
+    filtered_class_counts = Counter(y_train_filtered)
+    print("Distribuzione delle classi nel set di addestramento filtrato:", filtered_class_counts)
+
     # Determina il numero di suddivisioni adatto
-    num_splits = min(len(class_counts), 5)
+    min_class_count = min(filtered_class_counts.values())
+    num_splits = 2
+
     cv = StratifiedKFold(n_splits=num_splits, shuffle=True, random_state=42)
 
-    # Definisci la griglia di iperparametri corretta
+    # Definisci la griglia di iperparametri
     param_grid = {
         'n_estimators': [100],
         'max_depth': [None],
         'min_samples_split': [2],
         'min_samples_leaf': [1],
-        'max_features': ['sqrt'],  # Corretto
+        'max_features': ['sqrt'],
         'class_weight': ['balanced']
     }
 
@@ -125,10 +142,11 @@ def train_random_forest_multiclass(X_train, y_train, X_val, y_val, n_steps=10):
     rf_model = RandomForestClassifier(random_state=42)
 
     # Configura la ricerca degli iperparametri con cross-validation stratificata
-    grid_search = GridSearchCV(estimator=rf_model, param_grid=param_grid, cv=cv, n_jobs=2, verbose=1, scoring='accuracy')
+    grid_search = GridSearchCV(estimator=rf_model, param_grid=param_grid, cv=cv, n_jobs=2, verbose=1,
+                               scoring='accuracy')
 
     # Suddividi artificialmente il set di addestramento in step per simulare l'avanzamento
-    data_size = len(X_train)
+    data_size = len(X_train_filtered)
     step_size = data_size // n_steps
 
     for step in tqdm(range(n_steps), desc="Training Progress"):
@@ -137,8 +155,8 @@ def train_random_forest_multiclass(X_train, y_train, X_val, y_val, n_steps=10):
 
         # Adatta il modello sui dati attuali fino al passo corrente
         print(f"Training on data from index {start} to {end}")
-        grid_search.fit(X_train[:end], y_train[:end])
-        print(f"Step {step+1} completed")
+        grid_search.fit(X_train_filtered[:end], y_train_filtered[:end])
+        print(f"Step {step + 1} completed")
 
     # Ottieni il miglior modello dal GridSearch
     best_model = grid_search.best_estimator_
@@ -146,17 +164,32 @@ def train_random_forest_multiclass(X_train, y_train, X_val, y_val, n_steps=10):
     # Previsioni sul set di validazione
     y_val_pred = best_model.predict(X_val)
 
-    # Controlla la distribuzione delle classi reali e predette
-    print("Distribuzione delle classi reali:", np.bincount(y_val))
-    print("Distribuzione delle classi predette:", np.bincount(y_val_pred))
+    # Controlla la distribuzione delle classi reali e predette sul set di validazione
+    print("Distribuzione delle classi reali nel set di validazione:", np.bincount(y_val))
+    print("Distribuzione delle classi predette nel set di validazione:", np.bincount(y_val_pred))
 
-    # Valuta il modello con il parametro zero_division=0 per evitare l'avviso di divisione per zero
+    # Valuta il modello sul set di validazione
     print("Report di classificazione del set di validazione:")
     print(classification_report(y_val, y_val_pred, zero_division=0))
 
-    # Calcola e stampa l'accuratezza
-    accuracy = accuracy_score(y_val, y_val_pred)
-    print(f"Accuratezza sul set di validazione: {accuracy:.4f}")
+    # Calcola e stampa l'accuratezza sul set di validazione
+    accuracy_val = accuracy_score(y_val, y_val_pred)
+    print(f"Accuratezza sul set di validazione: {accuracy_val:.4f}")
+
+    # Previsioni sul set di test
+    y_test_pred = best_model.predict(X_test)
+
+    # Controlla la distribuzione delle classi reali e predette sul set di test
+    print("Distribuzione delle classi reali nel set di test:", np.bincount(y_test))
+    print("Distribuzione delle classi predette nel set di test:", np.bincount(y_test_pred))
+
+    # Valuta il modello sul set di test
+    print("Report di classificazione del set di test:")
+    print(classification_report(y_test, y_test_pred, zero_division=0))
+
+    # Calcola e stampa l'accuratezza sul set di test
+    accuracy_test = accuracy_score(y_test, y_test_pred)
+    print(f"Accuratezza sul set di test: {accuracy_test:.4f}")
 
     # Valuta l'importanza delle caratteristiche
     feature_importances = best_model.feature_importances_
@@ -165,10 +198,10 @@ def train_random_forest_multiclass(X_train, y_train, X_val, y_val, n_steps=10):
     return best_model
 
 
-def train_svm_multiclass(X_train, y_train, X_val, y_val):
+def train_svm_multiclass(X_train, y_train, X_val, y_val, X_test, y_test):
     """
     Addestra un modello di Support Vector Machine (SVM) sul set di addestramento
-    e valuta le sue prestazioni sul set di validazione.
+    e valuta le sue prestazioni sul set di validazione e sul set di test.
     """
     # Inizializza il modello SVM
     svm_model = SVC(random_state=42)
@@ -179,25 +212,40 @@ def train_svm_multiclass(X_train, y_train, X_val, y_val):
     # Previsioni sul set di validazione
     y_val_pred = svm_model.predict(X_val)
 
-    # Controlla la distribuzione delle classi reali e predette
-    print("Distribuzione delle classi reali:", np.bincount(y_val))
-    print("Distribuzione delle classi predette:", np.bincount(y_val_pred))
+    # Controlla la distribuzione delle classi reali e predette nel set di validazione
+    print("Distribuzione delle classi reali nel set di validazione:", np.bincount(y_val))
+    print("Distribuzione delle classi predette nel set di validazione:", np.bincount(y_val_pred))
 
     # Valuta il modello con il parametro zero_division=0 per evitare l'avviso di divisione per zero
     print("Report di classificazione del set di validazione:")
     print(classification_report(y_val, y_val_pred, zero_division=0))
 
-    # Calcola e stampa l'accuratezza
-    accuracy = accuracy_score(y_val, y_val_pred)
-    print(f"Accuratezza sul set di validazione: {accuracy:.4f}")
+    # Calcola e stampa l'accuratezza sul set di validazione
+    accuracy_val = accuracy_score(y_val, y_val_pred)
+    print(f"Accuratezza sul set di validazione: {accuracy_val:.4f}")
+
+    # Previsioni sul set di test
+    y_test_pred = svm_model.predict(X_test)
+
+    # Controlla la distribuzione delle classi reali e predette nel set di test
+    print("Distribuzione delle classi reali nel set di test:", np.bincount(y_test))
+    print("Distribuzione delle classi predette nel set di test:", np.bincount(y_test_pred))
+
+    # Valuta il modello sul set di test
+    print("Report di classificazione del set di test:")
+    print(classification_report(y_test, y_test_pred, zero_division=0))
+
+    # Calcola e stampa l'accuratezza sul set di test
+    accuracy_test = accuracy_score(y_test, y_test_pred)
+    print(f"Accuratezza sul set di test: {accuracy_test:.4f}")
 
     return svm_model
 
 
-def train_lightgbm(X_train, y_train, X_val, y_val):
+def train_lightgbm(X_train, y_train, X_val, y_val, X_test, y_test):
     """
     Addestra un modello LightGBM sul set di addestramento
-    e valuta le sue prestazioni sul set di validazione.
+    e valuta le sue prestazioni sul set di validazione e sul set di test.
     """
     # Crea un dataset LightGBM
     train_data = lgb.Dataset(X_train, label=y_train)
@@ -219,11 +267,22 @@ def train_lightgbm(X_train, y_train, X_val, y_val):
     y_val_pred = lgb_model.predict(X_val, num_iteration=lgb_model.best_iteration)
     y_val_pred_classes = np.argmax(y_val_pred, axis=1)
 
-    # Valuta il modello
+    # Valuta il modello sul set di validazione
     print("Report di classificazione del set di validazione:")
     print(classification_report(y_val, y_val_pred_classes, zero_division=1))
 
-    accuracy = accuracy_score(y_val, y_val_pred_classes)
-    print(f"Accuratezza sul set di validazione: {accuracy:.4f}")
+    accuracy_val = accuracy_score(y_val, y_val_pred_classes)
+    print(f"Accuratezza sul set di validazione: {accuracy_val:.4f}")
+
+    # Previsioni sul set di test
+    y_test_pred = lgb_model.predict(X_test, num_iteration=lgb_model.best_iteration)
+    y_test_pred_classes = np.argmax(y_test_pred, axis=1)
+
+    # Valuta il modello sul set di test
+    print("Report di classificazione del set di test:")
+    print(classification_report(y_test, y_test_pred_classes, zero_division=1))
+
+    accuracy_test = accuracy_score(y_test, y_test_pred_classes)
+    print(f"Accuratezza sul set di test: {accuracy_test:.4f}")
 
     return lgb_model
