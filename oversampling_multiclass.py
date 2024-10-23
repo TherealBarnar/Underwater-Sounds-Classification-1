@@ -12,6 +12,7 @@ from collections import Counter
 from sklearn.svm import SVC  # Importa SVC per il modello SVM
 import lightgbm as lgb  # Importa LightGBM
 
+
 # Funzione per suddividere il dataset
 def split_dataset(csv_file, train_size=0.8, val_size=0.1, test_size=0.1):
     """
