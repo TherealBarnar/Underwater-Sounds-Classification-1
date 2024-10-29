@@ -6,7 +6,7 @@ import os
 import numpy as np
 
 
-df = pd.read_csv("datasets_csv/audio_features_dataset_no_duplicates.csv")
+df = pd.read_csv("C:/underwater-classification/datasets_csv/audio_features_dataset_no_duplicates.csv")
 
 def estrai_classe_target(file_path):
     # Filtra le righe dove la colonna 'classe' è 'Target'
@@ -31,7 +31,7 @@ def sample_counter(dfTarget):
     plt.xlabel('Categoria')
     plt.ylabel('Numero di elementi')
     plt.title('Sample for each category')
-    plt.xticks(rotation=45)
+    plt.xticks(rotation=90)
 
     for i, count in enumerate(category_counts):
         ax.text(i, count + 0.5, str(count), ha='center', va='bottom', fontsize=10)
@@ -48,7 +48,7 @@ def sample_counterNot(dfNoTarget):
     plt.xlabel('Categoria')
     plt.ylabel('Numero di elementi')
     plt.title('Sample for each category')
-    plt.xticks(rotation=45)
+    plt.xticks(rotation=90)
 
     for i, count in enumerate(category_counts):
         ax.text(i, count + 0.5, str(count), ha='center', va='bottom', fontsize=10)
@@ -82,7 +82,7 @@ def plot_frequency_distribution(dfTarget):
     plt.title('Distribuzione delle Frequenze per la Classe Target')
     plt.xlabel('Frequenza')
     plt.ylabel('Occorrenze')
-    plt.xticks(rotation=45)
+    plt.xticks(rotation=90)
     plt.tight_layout()  # Aggiunge spaziatura per evitare sovrapposizioni
     plt.show()
 
@@ -112,7 +112,7 @@ def plot_frequency_distribution_not(dfNoTarget):
     plt.title('Distribuzione delle Frequenze per la Classe Non-Target')
     plt.xlabel('Frequenza')
     plt.ylabel('Occorrenze')
-    plt.xticks(rotation=45)
+    plt.xticks(rotation=90)
     plt.tight_layout()  # Aggiunge spaziatura per evitare sovrapposizioni
     plt.show()
 
@@ -154,7 +154,7 @@ def plot_combined_frequency_distribution(dfTarget, dfNoTarget):
     plt.title('Distribuzione delle Frequenze per Target e Non-Target')
     plt.xlabel('Frequenza')
     plt.ylabel('Occorrenze')
-    plt.xticks(rotation=45)
+    plt.xticks(rotation=90)
     plt.legend()  # Aggiungi la legenda con i colori corrispondenti
     plt.tight_layout()  # Aggiunge spaziatura per evitare sovrapposizioni
     plt.show()
@@ -187,7 +187,7 @@ def plot_duration_target(dfTarget):
     bars = plt.bar(range(len(duration_counts)), duration_counts.values, color='skyblue')
 
     # Aggiungi le etichette agli intervalli sull'asse x
-    plt.xticks(range(len(duration_counts)), duration_counts.index, rotation=45)
+    plt.xticks(range(len(duration_counts)), duration_counts.index, rotation=90)
 
     # Aggiungi i numeri sopra le barre
     for bar in bars:
