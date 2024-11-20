@@ -1,17 +1,15 @@
 import pandas as pd
-from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedGroupKFold
+from sklearn.model_selection import GridSearchCV
 from imblearn.over_sampling import SMOTE
-from sklearn.preprocessing import LabelEncoder
-from sklearn.impute import SimpleImputer
-import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, accuracy_score, f1_score
-from sklearn.svm import SVC  # Importa SVC per il modello SVM
-import lightgbm as lgb  # Importa LightGBM
-from sklearn.metrics import classification_report, confusion_matrix, log_loss, accuracy_score, roc_auc_score
+from sklearn.svm import SVC
+import lightgbm as lgb
+from sklearn.metrics import classification_report, log_loss, accuracy_score
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+import numpy as np
 from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import LabelEncoder
-
 
 def split_dataset(df, train_size=0.8, val_size=0.1, test_size=0.1):
     # Aggiungi una colonna "Parent" che contiene il prefisso dei file per garantire la coesione dei segmenti
@@ -89,6 +87,9 @@ def split_dataset(df, train_size=0.8, val_size=0.1, test_size=0.1):
     print(X_test['Subclass'].value_counts())
 
     return X_train, X_val, X_test, y_train, y_val, y_test, subclass_encoder
+
+
+
 
 
 def apply_smote_multiclass(X_train, y_train, k_neighbors=1):
@@ -331,8 +332,101 @@ def train_lightgbm(X_train, y_train, X_val, y_val, X_test, y_test):
     return lgb_model
 
 
+def rf_plot_confusion_matrices(model, X_val, y_val_encoded, X_test, y_test_encoded):
+
+    # Predizioni del modello
+    y_val_pred = model.predict(X_val)
+    y_test_pred = model.predict(X_test)
+
+    # Genera le matrici di confusione
+    cm_val = confusion_matrix(y_val_encoded, y_val_pred, labels=np.unique(y_val_encoded))
+    cm_test = confusion_matrix(y_test_encoded, y_test_pred, labels=np.unique(y_test_encoded))
+
+    # Genera le rappresentazioni grafiche
+    disp_val = ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=np.unique(y_val_encoded))
+    disp_test = ConfusionMatrixDisplay(confusion_matrix=cm_test, display_labels=np.unique(y_test_encoded))
+
+    # Crea una figura con due sotto-grafici
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+    # Mostra le matrici di confusione
+    disp_val.plot(cmap='Blues', ax=axes[0])
+    axes[0].set_title("Random Forest - Matrice di Confusione (Validazione)")
+
+    disp_test.plot(cmap='Blues', ax=axes[1])
+    axes[1].set_title("Random Forest - Matrice di Confusione (Test)")
+
+    # Rimuove la griglia
+    for ax in axes:
+        ax.grid(False)
+
+    # Mostra le figure
+    plt.tight_layout()
+    plt.show()
 
 
+def svm_plot_confusion_matrices(model, X_val, y_val_encoded, X_test, y_test_encoded):
 
+    # Predizioni del modello
+    y_val_pred = model.predict(X_val)
+    y_test_pred = model.predict(X_test)
 
+    # Genera le matrici di confusione
+    cm_val = confusion_matrix(y_val_encoded, y_val_pred, labels=np.unique(y_val_encoded))
+    cm_test = confusion_matrix(y_test_encoded, y_test_pred, labels=np.unique(y_test_encoded))
 
+    # Genera le rappresentazioni grafiche
+    disp_val = ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=np.unique(y_val_encoded))
+    disp_test = ConfusionMatrixDisplay(confusion_matrix=cm_test, display_labels=np.unique(y_test_encoded))
+
+    # Crea una figura con due sotto-grafici
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+    # Mostra le matrici di confusione
+    disp_val.plot(cmap='Blues', ax=axes[0])
+    axes[0].set_title("SVM - Matrice di Confusione (Validazione)")
+
+    disp_test.plot(cmap='Blues', ax=axes[1])
+    axes[1].set_title("SVM - Matrice di Confusione (Test)")
+
+    # Rimuove la griglia
+    for ax in axes:
+        ax.grid(False)
+
+    # Mostra le figure
+    plt.tight_layout()
+    plt.show()
+
+def lightgbm_plot_confusion_matrices(model, X_val, y_val_encoded, X_test, y_test_encoded):
+
+    y_val_pred_proba = model.predict(X_val)
+    y_val_pred = np.argmax(y_val_pred_proba, axis=1)
+
+    y_test_pred_proba = model.predict(X_test)
+    y_test_pred = np.argmax(y_test_pred_proba, axis=1)
+
+    # Genera le matrici di confusione
+    cm_val = confusion_matrix(y_val_encoded, y_val_pred, labels=np.unique(y_val_encoded))
+    cm_test = confusion_matrix(y_test_encoded, y_test_pred, labels=np.unique(y_test_encoded))
+
+    # Genera le rappresentazioni grafiche
+    disp_val = ConfusionMatrixDisplay(confusion_matrix=cm_val, display_labels=np.unique(y_val_encoded))
+    disp_test = ConfusionMatrixDisplay(confusion_matrix=cm_test, display_labels=np.unique(y_test_encoded))
+
+    # Crea una figura con due sotto-grafici
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+    # Mostra le matrici di confusione
+    disp_val.plot(cmap='Blues', ax=axes[0])
+    axes[0].set_title("LightGBM - Matrice di Confusione (Validazione)")
+
+    disp_test.plot(cmap='Blues', ax=axes[1])
+    axes[1].set_title("LightGBM - Matrice di Confusione (Test)")
+
+    # Rimuove la griglia
+    for ax in axes:
+        ax.grid(False)
+
+    # Mostra le figure
+    plt.tight_layout()
+    plt.show()

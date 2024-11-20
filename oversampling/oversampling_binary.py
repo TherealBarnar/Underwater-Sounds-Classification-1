@@ -10,128 +10,84 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import SGDClassifier
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GroupShuffleSplit
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import LabelEncoder
 
-def split_dataset(csv_file, train_size=0.8, val_size=0.1, test_size=0.1):
-    # Carica il CSV
-    df = pd.read_csv(csv_file)
+def split_dataset(df, train_size=0.8, val_size=0.1, test_size=0.1):
+    # Aggiungi una colonna "Parent" per il raggruppamento coerente
+    df['Parent'] = df['File Name'].str.extract(r'^(.*?)(?=_seg)')
 
-    # Conta il numero di campioni prima del filtraggio
-    initial_count = df.shape[0]
+    # Filtra i dati per le classi Target e Non-Target
+    df_binary = df[df['Class'].isin(['Target', 'Non-Target'])].copy()
 
-    # Filtra le subclassi con meno di 25 campioni
-    subclass_counts = df['Subclass'].value_counts()
-    valid_subclasses = subclass_counts[subclass_counts >= 25].index
-    df = df[df['Subclass'].isin(valid_subclasses)]
+    # Codifica le classi in numeri: Target (1) e Non-Target (0)
+    df_binary['Class_encoded'] = (df_binary['Class'] == 'Target').astype(int)
 
-    # Conta i campioni dopo il filtraggio e calcola i campioni rimossi
-    filtered_count = df.shape[0]
-    removed_count = initial_count - filtered_count
-    print(f"Numero di campioni rimossi per subclassi con meno di 25 campioni: {removed_count}")
+    print(f"Dimensione totale: {df_binary.shape[0]} campioni")
 
-    # Imputazione dei valori NaN solo nelle colonne numeriche
-    numeric_cols = df.select_dtypes(include=['float64', 'int64']).columns
-    imputer = SimpleImputer(strategy='mean')
-    df[numeric_cols] = imputer.fit_transform(df[numeric_cols])
+    # Suddivisione rispettando i gruppi
+    gss = GroupShuffleSplit(n_splits=1, train_size=train_size, random_state=42)
+    groups = df_binary['Parent']
+    train_idx, temp_idx = next(gss.split(df_binary, groups=groups))
 
-    # Separa le caratteristiche e il target
-    X = df.drop(columns=['Class', 'Subclass', 'File Name'])
-    y = df['Class']
-    subclasses = df['Subclass']
+    # Suddivisione del set temporaneo tra validation e test
+    val_test_split = GroupShuffleSplit(n_splits=1, train_size=val_size / (val_size + test_size), random_state=42)
+    val_idx, test_idx = next(val_test_split.split(df_binary.iloc[temp_idx], groups=df_binary.iloc[temp_idx]['Parent']))
 
-    # Codifica le etichette "Class" in numeri interi
-    class_encoder = LabelEncoder()
-    y_encoded = class_encoder.fit_transform(y)
+    # Creazione dei set di addestramento, validazione e test
+    X_train, X_val, X_test = df_binary.iloc[train_idx].copy(), df_binary.iloc[val_idx].copy(), df_binary.iloc[test_idx].copy()
 
-    # Primo split train-temp (80% train, 20% temp), stratificato sulle subclassi
-    X_train, X_temp, y_train_encoded, y_temp, subclasses_train, subclasses_temp = train_test_split(
-        X, y_encoded, subclasses, train_size=train_size, stratify=subclasses, random_state=42)
+    # Separazione delle etichette
+    y_train = X_train['Class_encoded'].values
+    y_val = X_val['Class_encoded'].values
+    y_test = X_test['Class_encoded'].values
 
-    # Secondo split temp in validation-test (10% ciascuno), stratificato sulle subclassi rimanenti
-    X_val, X_test, y_val_encoded, y_test_encoded, subclasses_val, subclasses_test = train_test_split(
-        X_temp, y_temp, subclasses_temp, test_size=0.5, stratify=subclasses_temp, random_state=42)
+    # Rimozione delle colonne aggiuntive
+    for dataset in [X_train, X_val, X_test]:
+        dataset.drop(columns=['Class_encoded'], inplace=True)
 
-    # Stampa la distribuzione delle subclassi nei vari set
-    print("Distribuzione delle subclassi nel set di addestramento:")
-    print(subclasses_train.value_counts())
-    print("Distribuzione delle subclassi nel set di validazione:")
-    print(subclasses_val.value_counts())
-    print("Distribuzione delle subclassi nel set di test:")
-    print(subclasses_test.value_counts())
+    # Stampa distribuzioni per verifica
+    total_samples = df_binary.shape[0]
+    print(f"\nDimensione del set di addestramento: {X_train.shape[0]} campioni ({X_train.shape[0] / total_samples:.2%})")
+    print(f"Dimensione del set di validazione: {X_val.shape[0]} campioni ({X_val.shape[0] / total_samples:.2%})")
+    print(f"Dimensione del set di test: {X_test.shape[0]} campioni ({X_test.shape[0] / total_samples:.2%})\n")
 
-    return X_train, X_val, X_test, y_train_encoded, y_val_encoded, y_test_encoded, subclasses_train, class_encoder
+    # Verifica delle distribuzioni delle classi
+    print("Distribuzione delle classi nel set di addestramento:")
+    print(X_train['Class'].value_counts())
+    print("\nDistribuzione delle classi nel set di validazione:")
+    print(X_val['Class'].value_counts())
+    print("\nDistribuzione delle classi nel set di test:")
+    print(X_test['Class'].value_counts())
+
+    return X_train, X_val, X_test, y_train, y_val, y_test
 
 
-def apply_smote(X_train, y_train, subclasses_train):
-    # Imputazione dei valori NaN
-    imputer = SimpleImputer(strategy='mean')
-    X_train_imputed = imputer.fit_transform(X_train)
+def apply_smote(X_train, y_train, subclasses=None):
+    """
+    Funzione per bilanciare le classi usando SMOTE.
+    Args:
+    - X_train (pd.DataFrame): Le caratteristiche di addestramento.
+    - y_train (pd.Series): I target di addestramento.
+    - subclasses (list): Le sottoclassi che devono essere bilanciate.
 
-    # Separiamo i campioni tra Target (1) e Non-Target (0)
-    X_target = X_train_imputed[y_train == 1]
-    subclasses_target = subclasses_train[y_train == 1]
+    Returns:
+    - X_train_resampled (pd.DataFrame): Il dataset delle caratteristiche bilanciato.
+    - y_train_resampled (pd.Series): Il target bilanciato.
+    """
 
-    X_non_target = X_train_imputed[y_train == 0]
-    subclasses_non_target = subclasses_train[y_train == 0]
+    # Verifica delle classi presenti
+    if subclasses is not None:
+        y_train = y_train[y_train.isin(subclasses)]
 
-    # Rimuoviamo le subclassi con un solo campione
-    subclass_counts_target = pd.Series(subclasses_target).value_counts()
-    valid_subclasses_target = subclass_counts_target[subclass_counts_target > 1].index
-    X_target = X_target[np.isin(subclasses_target, valid_subclasses_target)]
-    subclasses_target = subclasses_target[np.isin(subclasses_target, valid_subclasses_target)]
+    # Applicare SMOTE solo per le classi
+    smote = SMOTE(sampling_strategy='auto')  # 'auto' significa bilanciare automaticamente le classi
+    X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
 
-    subclass_counts_non_target = pd.Series(subclasses_non_target).value_counts()
-    valid_subclasses_non_target = subclass_counts_non_target[subclass_counts_non_target > 1].index
-    X_non_target = X_non_target[np.isin(subclasses_non_target, valid_subclasses_non_target)]
-    subclasses_non_target = subclasses_non_target[np.isin(subclasses_non_target, valid_subclasses_non_target)]
+    return X_train_resampled, y_train_resampled
 
-    # Crea l'istanza di SMOTE
-    smote = SMOTE(random_state=42, k_neighbors=1)
 
-    # SMOTE tra le subclass di Target
-    print("SMOTE tra le subclass di Target:")
-    if len(X_target) > 1:
-        X_target_resampled, subclasses_target_resampled = smote.fit_resample(X_target, subclasses_target)
-        print("Distribuzione subclassi di Target dopo SMOTE:")
-        print(pd.Series(subclasses_target_resampled).value_counts())
-    else:
-        print("Non ci sono abbastanza campioni nella subclass di Target.")
-        X_target_resampled = np.empty((0, X_target.shape[1]))
-        subclasses_target_resampled = np.array([])
-
-    # SMOTE tra le subclass di Non-Target
-    print("SMOTE tra le subclass di Non-Target:")
-    if len(X_non_target) > 1:
-        X_non_target_resampled, subclasses_non_target_resampled = smote.fit_resample(X_non_target, subclasses_non_target)
-        print("Distribuzione subclassi di Non-Target dopo SMOTE:")
-        print(pd.Series(subclasses_non_target_resampled).value_counts())
-    else:
-        print("Non ci sono abbastanza campioni nella subclass di Non-Target.")
-        X_non_target_resampled = np.empty((0, X_non_target.shape[1]))
-        subclasses_non_target_resampled = np.array([])
-
-    # Combiniamo i risultati
-    if X_target_resampled.shape[0] > 0 or X_non_target_resampled.shape[0] > 0:
-        X_resampled_combined = np.vstack([X_target_resampled, X_non_target_resampled])
-        y_resampled_combined = np.hstack([np.ones(len(X_target_resampled)), np.zeros(len(X_non_target_resampled))])
-
-        # SMOTE globale finale tra Target e Non-Target
-        print("SMOTE globale finale tra Target e Non-Target:")
-        if len(y_resampled_combined) > 1:
-            X_train_final_resampled, y_train_final_resampled = smote.fit_resample(X_resampled_combined, y_resampled_combined)
-            print("Distribuzione delle classi dopo SMOTE globale finale:")
-            print(pd.Series(y_train_final_resampled).value_counts())
-        else:
-            raise ValueError("Nessun campione disponibile per lo SMOTE globale finale tra Target e Non-Target.")
-
-        # Stampa delle dimensioni finali
-        print("Dimensioni finali del set di addestramento:", X_train_final_resampled.shape, y_train_final_resampled.shape)
-
-        return X_train_final_resampled, y_train_final_resampled
-    else:
-        raise ValueError("Nessun campione disponibile dopo SMOTE tra le subclassi.")
 def train_random_forest(X_train, y_train, X_val, y_val, X_test, y_test):
 
     # Definisci il modello Random Forest
