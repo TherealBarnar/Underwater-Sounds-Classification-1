@@ -12,27 +12,15 @@ from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import LabelEncoder
 
 def split_dataset(df, train_size=0.8, val_size=0.1, test_size=0.1):
-    # Aggiungi una colonna "Parent" che contiene il prefisso dei file per garantire la coesione dei segmenti
-    df['Parent'] = df['File Name'].str.extract(r'^(.*?)(?=_seg)')
-
-    # Filtra solo i dati con Class = Target
-    df_target = df[df['Class'] == 'Target'].copy()
-
-    # Filtra le subclass con almeno 10 parent distinti
-    parent_counts = df_target.groupby('Subclass')['Parent'].nunique()
-    subclasses_to_keep = parent_counts[parent_counts >= 10].index
-    df_target = df_target[df_target['Subclass'].isin(subclasses_to_keep)].copy()
-
-    print(f"Dimensione totale dopo il filtraggio: {df_target.shape[0]} campioni")
 
     # Codifica le etichette "Subclass" in numeri interi
     subclass_encoder = LabelEncoder()
-    df_target['Subclass_encoded'] = subclass_encoder.fit_transform(df_target['Subclass'])
+    df['Subclass_encoded'] = subclass_encoder.fit_transform(df['Subclass'])
 
     # Suddivisione per subclass mantenendo coerenza di gruppi
     train_idx, val_idx, test_idx = [], [], []
-    for subclass in df_target['Subclass'].unique():
-        subclass_data = df_target[df_target['Subclass'] == subclass]
+    for subclass in df['Subclass'].unique():
+        subclass_data = df[df['Subclass'] == subclass]
 
         # Utilizzo di GroupShuffleSplit per dividere ogni subclass rispettando la coesione dei gruppi
         gss = GroupShuffleSplit(n_splits=1, train_size=train_size, random_state=42)
@@ -51,7 +39,7 @@ def split_dataset(df, train_size=0.8, val_size=0.1, test_size=0.1):
         test_idx.extend(subclass_data.index[subclass_temp_idx[test_idx_local]].tolist())
 
     # Creazione dei set di addestramento, validazione e test
-    X_train, X_val, X_test = df_target.loc[train_idx].copy(), df_target.loc[val_idx].copy(), df_target.loc[
+    X_train, X_val, X_test = df.loc[train_idx].copy(), df.loc[val_idx].copy(), df.loc[
         test_idx].copy()
 
     # Ordina i set per prefisso e numero di segmento
@@ -72,7 +60,7 @@ def split_dataset(df, train_size=0.8, val_size=0.1, test_size=0.1):
     X_test = X_test.drop(columns=['Subclass_encoded'])
 
     # Stampa distribuzioni per verifica
-    total_samples = df_target.shape[0]
+    total_samples = df.shape[0]
     print(
         f"\nDimensione del set di addestramento: {X_train.shape[0]} campioni ({X_train.shape[0] / total_samples:.2%})")
     print(f"Dimensione del set di validazione: {X_val.shape[0]} campioni ({X_val.shape[0] / total_samples:.2%})")

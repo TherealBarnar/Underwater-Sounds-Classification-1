@@ -14,15 +14,6 @@ from sklearn.svm import SVC
 import lightgbm as lgb
 
 def split_dataset(df, train_size=0.8, val_size=0.1, test_size=0.1):
-    # Aggiungi una colonna "Parent" che contiene il prefisso del file per mantenere i segmenti coesi
-    df['Parent'] = df['File Name'].str.extract(r'^(.*?)(?=_seg)')
-
-    # Filtra subclass con almeno 10 parent distinti
-    parent_counts = df.groupby('Subclass')['Parent'].nunique()
-    subclasses_to_keep = parent_counts[parent_counts >= 10].index
-    df = df[df['Subclass'].isin(subclasses_to_keep)].copy()
-
-    print(f"Dimensione totale dopo il filtraggio: {df.shape[0]} campioni")
 
     # Gestione dei NaN con SimpleImputer
     imputer = SimpleImputer(strategy='mean')
