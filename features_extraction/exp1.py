@@ -65,7 +65,7 @@ def extract_features_from_directory(audio_directory):
 
     # Usa tqdm per mostrare la barra di avanzamento
     for file_path in tqdm(files, desc="Elaborazione file audio", unit="file"):
-        print(f"Processing file: {os.path.basename(file_path)}")
+        #print(f"Processing file: {os.path.basename(file_path)}")
         features = extract_features(file_path)
         if features is not None:
             features_list.append(features)
