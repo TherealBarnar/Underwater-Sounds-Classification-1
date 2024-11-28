@@ -1,4 +1,4 @@
-/.ipynb_checkpoints/*
+/.ipynb_checkpoints/
 /file_audio
 /resample_experiments/resampling_44100/binary/.ipynb_checkpoints
 /resample_experiments/resampling_384000/binary/.ipynb_checkpoints
